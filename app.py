@@ -60,6 +60,7 @@ font = pygame.font.SysFont("malgungothic", 48)
 
 # 로딩 화면 보여주기
 show_loading_screen(screen, font, LOADING_SCREEN)
+time.sleep(3)
 
 loading_screen = pygame.image.load(LOADING_SCREEN)
 
@@ -156,7 +157,7 @@ game_ready = font.render("게임 시작!", True, (255, 255, 255))
 screen.blit(loading_screen, (0, 0))
 screen.blit(game_ready, (220, 220))
 pygame.display.update()
-# time.sleep(3)
+time.sleep(3)
 
 
 # 배경 이미지 불러오기
