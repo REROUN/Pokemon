@@ -1,3 +1,4 @@
+import re
 import os
 import sys
 import time
@@ -225,6 +226,16 @@ enemy_attack = False
 gpt_response_pending = False
 gpt_response_text = ""
 battle_started = False
+zygarde_hp = 216
+yveltal_hp = 126
+damage = 0
+messages = [
+    {
+        "role": "system",
+        "content": "너는 포켓몬 배틀 해설자야. 매 턴 상황을 해설하고 데미지를 알려줘.",
+    }
+]
+
 while running:
     dt = clock.tick(60)  # 게임화면의 초당 프레임 수를 설정
 
@@ -234,87 +245,84 @@ while running:
 
         if event.type == pygame.KEYDOWN:  # 키가 눌러졌는지 확인
             if event.key == pygame.K_SPACE:
-                prompt1 = "지가르데 공격"  # stt.stt()
+                prompt1 = "지가르데 천살!!"  # stt.stt()
+                messages.append({"role": "user", "content": prompt1})
                 response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "포켓몬 게임 해설자입니다. 한 문장으로 임팩트 있게 상황을 요약해주세요.",
-                        },
-                        {"role": "user", "content": prompt1},
-                    ],
+                    model="gpt-4o", messages=messages
                 )
+                gpt_response_text = response.choices[0].message.content
                 # tts.tts(response.choices[0].message.content.replace("\n", " "))
-                print(response.choices[0].message.content)
+                print(gpt_response_text)
+                messages.append({"role": "user", "content": gpt_response_text})
+                match = re.search(r"(\d+)\s*의 데미지", gpt_response_text)
+                if match:
+                    damage = int(match.group(1))
+                yveltal_hp -= damage
+
                 enemy_attack = True
-            elif event.key == pygame.K_ESCAPE:
-                response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "포켓몬 게임 해설자입니다. 한 문장으로 임팩트 있게 상황을 요약해주세요.",
-                        },
-                        {"role": "user", "content": "나의 승리!"},
-                    ],
-                )
-                # tts.tts(response.choices[0].message.content.replace("\n", " "))
-                print(response.choices[0].message.content)
-                # pygame 종료
-                pygame.quit()
+
+    if yveltal_hp <= 0:
+        # tts.tts("이벨가 쓰러졌다! 눈앞이 캄캄 해졌다...")
+        print("이벨가 쓰러졌다! 눈앞이 캄캄 해졌다...")
+        pygame.quit()
 
     if enemy_attack:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "포켓몬 게임 해설자입니다. 한 문장으로 임팩트 있게 상황을 요약해주세요.",
-                },
-                {"role": "user", "content": prompt2},
-            ],
-        )
+        prompt2 = "이벨타르의 데스윙!!"
+        messages.append({"role": "user", "content": prompt2})
+        response = client.chat.completions.create(model="gpt-4o", messages=messages)
+        gpt_response_text = response.choices[0].message.content
         # tts.tts(response.choices[0].message.content.replace("\n", " "))
-        print(response.choices[0].message.content)
-        prompt2 = "이벨타르의 공격!!"
+        print(gpt_response_text)
+        messages.append({"role": "user", "content": gpt_response_text})
+
+        match = re.search(r"(\d+)\s*의 데미지", gpt_response_text)
+        if match:
+            damage = int(match.group(1))
+        zygarde_hp -= damage
+
         enemy_attack = False
+
+    if zygarde_hp <= 0:
+        # tts.tts("지가르데가 쓰러졌다! 눈앞이 캄캄 해졌다...")
+        print("지가르데가 쓰러졌다! 눈앞이 캄캄 해졌다...")
+        pygame.quit()
 
     if battle and not gpt_response_pending:
         gpt_response_pending = True
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "포켓몬 전투 해설자입니다. 한 문장으로 상황을 요약해주세요.",
-                },
-                {
-                    "role": "user",
-                    "content": """
-                    나는 지가르데를 소환했다.
-                    상대는 이벨타르를 소환.
-                    지가르데의 능력치
-                        - HP: 216
-                        - 공격: 100
-                        - 방어: 121
-                        - 특수 공격: 91
-                        - 특수 방어: 95
-                        - 스피드: 85
-                    이벨타르의 능력치
-                        - HP: 126
-                        - 공격: 131
-                        - 방어: 95
-                        - 특수 공격: 131
-                        - 특수 방어: 98
-                        - 스피드: 99
-                    """,
-                },
-            ],
+        prompt3 = f"""
+        나는 지가르데를 소환했다.
+        상대는 이벨타르를 소환.
+        지가르데의 능력치
+            - HP: {zygarde_hp}
+            - 공격: 100
+            - 방어: 121
+            - 특수 공격: 91
+            - 특수 방어: 95
+            - 스피드: 85
+        이벨타르의 능력치
+            - HP: {yveltal_hp}
+            - 공격: 131
+            - 방어: 95
+            - 특수 공격: 131
+            - 특수 방어: 98
+            - 스피드: 99
+        """
+        messages.append(
+            {
+                "role": "user",
+                "content": prompt3,
+            },
         )
+        response = client.chat.completions.create(model="gpt-4o", messages=messages)
         gpt_response_text = response.choices[0].message.content.strip()
         # tts.tts(gpt_response_text)
         print(gpt_response_text)
+        messages.append(
+            {
+                "role": "user",
+                "content": gpt_response_text,
+            },
+        )
 
     if character_x_pos + character_width > 0:
         character_x_pos -= 5
