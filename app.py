@@ -209,15 +209,95 @@ enemy_pokemon_y_pos = 0  # 화면 세로 크기 가장 아래에 해당하는 �
 # FPS
 clock = pygame.time.Clock()
 
+# STT
+stt = STT()
+prompt1 = "가라 지가르데!!"
+prompt2 = "가라 이벨타르!!"
+
+# TTS
+tts = TTS()
+
 # 이벤트 루프
 running = True  # 게임이 진행중인가?
 starting = True
+battle = False
+enemy_attack = False
+gpt_response_pending = False
+gpt_response_text = ""
+battle_started = False
 while running:
     dt = clock.tick(60)  # 게임화면의 초당 프레임 수를 설정
 
     for event in pygame.event.get():  # 어떤 이벤트가 발생하였는가?
         if event.type == pygame.QUIT:  # 창 닫기 버튼 누르면 종료
             running = False  # 게임이 진행중이 아님
+
+        if event.type == pygame.KEYDOWN:  # 키가 눌러졌는지 확인
+            if event.key == pygame.K_SPACE:
+                prompt1 = "지가르데 공격"  # stt.stt()
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "포켓몬 게임 해설자입니다. 한 문장으로 임팩트 있게 상황을 요약해주세요.",
+                        },
+                        {"role": "user", "content": prompt1},
+                    ],
+                )
+                # tts.tts(response.choices[0].message.content.replace("\n", " "))
+                print(response.choices[0].message.content)
+                enemy_attack = True
+            elif event.key == pygame.K_ESCAPE:
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "포켓몬 게임 해설자입니다. 한 문장으로 임팩트 있게 상황을 요약해주세요.",
+                        },
+                        {"role": "user", "content": "나의 승리!"},
+                    ],
+                )
+                # tts.tts(response.choices[0].message.content.replace("\n", " "))
+                print(response.choices[0].message.content)
+                # pygame 종료
+                pygame.quit()
+
+    if enemy_attack:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "포켓몬 게임 해설자입니다. 한 문장으로 임팩트 있게 상황을 요약해주세요.",
+                },
+                {"role": "user", "content": prompt2},
+            ],
+        )
+        # tts.tts(response.choices[0].message.content.replace("\n", " "))
+        print(response.choices[0].message.content)
+        prompt2 = "이벨타르의 공격!!"
+        enemy_attack = False
+
+    if battle and not gpt_response_pending:
+        gpt_response_pending = True
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "포켓몬 전투 해설자입니다. 한 문장으로 상황을 요약해주세요.",
+                },
+                {
+                    "role": "user",
+                    "content": "나는 지가르데를 소환, 상대는 이벨타르를 소환",
+                },
+            ],
+        )
+        gpt_response_text = response.choices[0].message.content.strip()
+        # tts.tts(gpt_response_text)
+        print(gpt_response_text)
 
     if character_x_pos + character_width > 0:
         character_x_pos -= 5
@@ -246,12 +326,16 @@ while running:
     else:
         screen.blit(enemy_pokemon, (enemy_pokemon_x_pos, enemy_pokemon_y_pos))
 
+    if (character_x_pos + character_width <= 0) and (enemy_x_pos >= screen_width):
+        battle = True
+
     pygame.display.update()  # 게임화면을 다시 그리기!
 
     if starting:
         tts = TTS()
         tts.tts("사천왕과 배틀에서 승리하세요!")
         starting = False
+
 
 # pygame 종료
 pygame.quit()
