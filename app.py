@@ -67,6 +67,7 @@ loading_screen = pygame.image.load(LOADING_SCREEN)
 ENEMYS = os.path.join(ROOT, "Enemys")
 CHARACTER = os.path.join(ROOT, "Character")
 POKEMON = os.path.join(ROOT, "Pokemon")
+HP = os.path.join(ROOT, "HP")
 # if not (os.path.isdir(ENEMYS)):
 #     os.mkdir(ENEMYS)
 
@@ -208,6 +209,24 @@ enemy_pokemon_x_pos = (
 )  # 화면 가로의 절반 크기에 해당하는 곳에 위치(가로)
 enemy_pokemon_y_pos = 0  # 화면 세로 크기 가장 아래에 해당하는 곳에 위치(세로)
 
+# 내 포켓몬 체력바
+my_hp_img = os.path.join(HP, "my_hp.png")
+my_hp = pygame.image.load(my_hp_img)
+my_hp_size = my_hp.get_rect().size
+my_hp_width = my_hp_size[0]
+my_hp_hight = my_hp_size[1]
+my_hp_x_pos = 300
+my_hp_y_pos = 400
+
+# 상대대 포켓몬 체력바
+enemy_hp_img = os.path.join(HP, "enemy_hp.png")
+enemy_hp = pygame.image.load(enemy_hp_img)
+enemy_hp_size = enemy_hp.get_rect().size
+enemy_hp_width = enemy_hp_size[0]
+enemy_hp_hight = enemy_hp_size[1]
+enemy_hp_x_pos = 50
+enemy_hp_y_pos = 50
+
 # FPS
 clock = pygame.time.Clock()
 
@@ -229,16 +248,31 @@ gpt_response_text = ""
 battle_started = False
 zygarde_hp = 216
 yveltal_hp = 126
-damage = 0
 messages = [
     {
         "role": "system",
-        "content": "너는 포켓몬 배틀 해설자야. 매 턴 상황을 해설하고 데미지를 알려줘.",
+        "content": f"""
+        너는 포켓몬 배틀 해설자야.
+        처음 소환하면 배틀이 시작되는 거고 내가 포켓몬 명령과 관련된 프롬프트를 넣어주면 그때 게임이 시작되며 턴이 진행되는거야.
+        처음 포켓몬을 소환하였을 때 상세한 능력치를 전부 말해줄 필요 없이 간략하게 배틀이 시작되었다고만 출력해줘.
+        프롬프트 한번에 한턴만 진행되는거니까 턴을 마음대로 진행하지 말고 다음 프롬프트가 들어올 때까지 기다려줘.
+        내 포켓몬과 관련된 프롬프트가 들어오면 내 턴에 대한 상황만 간략하게 해설하고 상대의 포켓몬과 관련된 프롬프트가 들어오면 상대 턴에 대한 상황만 간략하게 해설해줘.
+        그리고 매 턴마다 공격 데미지가 몇 들어갔는지 알려주고 체력 상황을 알려줘.
+        매 턴 상대 포켓몬과 내 포켓몬의 체력은 다음과 같이 표시해줘:
+            "상대 포켓몬 이름 HP - {yveltal_hp}"
+            "내 포켓몬 이름 HP - {zygarde_hp}"
+        그리고 만약 나의 포켓몬 체력이 0 또는 0보다 아래이면 체력 상황을 알려주고 이후 '패배하였습니다.'라는 결과만 출력해줘.
+        상대 포켓몬의 체력이 0 또는 0 아래이면 체력 상황을 알려주고 이후 '승리하였습니다.'라는 결과만 출력해줘.
+        또한 결과가 나왔다면 이후에는 결과만 출력해줘.
+        """,
     }
 ]
+font = pygame.font.SysFont("malgungothic", 13)
 
 while running:
     dt = clock.tick(60)  # 게임화면의 초당 프레임 수를 설정
+
+    screen.blit(background, (0, 0))  # 배경 그리기
 
     for event in pygame.event.get():  # 어떤 이벤트가 발생하였는가?
         if event.type == pygame.QUIT:  # 창 닫기 버튼 누르면 종료
@@ -252,40 +286,48 @@ while running:
                     model="gpt-4o", messages=messages
                 )
                 gpt_response_text = response.choices[0].message.content
-                # tts.tts(response.choices[0].message.content.replace("\n", " "))
-                print(gpt_response_text)
+                tts.tts(gpt_response_text)
+                # print(gpt_response_text)
                 messages.append({"role": "user", "content": gpt_response_text})
-                match = re.search(r"(\d+)\s*의 데미지", gpt_response_text)
+                match = re.search(r"이벨타르\s*HP\s*-\s*([0-9]+)", gpt_response_text)
                 if match:
-                    damage = int(match.group(1))
-                yveltal_hp -= damage
+                    yveltal_hp = int(match.group(1))
 
                 enemy_attack = True
 
-    if yveltal_hp <= 0:
-        # tts.tts("이벨가 쓰러졌다! 눈앞이 캄캄 해졌다...")
-        print("이벨가 쓰러졌다! 눈앞이 캄캄 해졌다...")
+    # y = 430
+    # for line in gpt_response_text.split("\n"):
+    #     chat_box = font.render(line, True, (0, 0, 0))
+    #     screen.blit(chat_box, (350, y))
+    #     y += 30
+
+    result_match = re.search(r"승리하였습니다.", gpt_response_text)
+    if result_match:
+        # tts.tts("상대를 쓰러뜨렸다!")
+        print("상대를 쓰러뜨렸다!")
+        time.sleep(5)
         pygame.quit()
 
     if enemy_attack:
-        prompt2 = "이벨타르의 데스윙!!"
+        prompt2 = "이벨타르 공격해!!"
         messages.append({"role": "user", "content": prompt2})
         response = client.chat.completions.create(model="gpt-4o", messages=messages)
         gpt_response_text = response.choices[0].message.content
-        # tts.tts(response.choices[0].message.content.replace("\n", " "))
-        print(gpt_response_text)
+        tts.tts(gpt_response_text)
+        # print(gpt_response_text)
         messages.append({"role": "user", "content": gpt_response_text})
 
-        match = re.search(r"(\d+)\s*의 데미지", gpt_response_text)
+        match = re.search(r"지가르데\s*HP\s*-\s*([0-9]+)", gpt_response_text)
         if match:
-            damage = int(match.group(1))
-        zygarde_hp -= damage
+            zygarde_hp = int(match.group(1))
 
         enemy_attack = False
 
-    if zygarde_hp <= 0:
+    result_match = re.search(r"패배하였습니다.", gpt_response_text)
+    if result_match:
         # tts.tts("지가르데가 쓰러졌다! 눈앞이 캄캄 해졌다...")
         print("지가르데가 쓰러졌다! 눈앞이 캄캄 해졌다...")
+        time.sleep(5)
         pygame.quit()
 
     if battle and not gpt_response_pending:
@@ -316,8 +358,8 @@ while running:
         )
         response = client.chat.completions.create(model="gpt-4o", messages=messages)
         gpt_response_text = response.choices[0].message.content.strip()
-        # tts.tts(gpt_response_text)
-        print(gpt_response_text)
+        tts.tts(gpt_response_text)
+        # print(gpt_response_text)
         messages.append(
             {
                 "role": "user",
@@ -340,17 +382,25 @@ while running:
     enemy_rect.left = enemy_x_pos
     enemy_rect.top = enemy_y_pos
 
-    screen.blit(background, (0, 0))  # 배경 그리기
-
     if character_x_pos + character_width > 0:
         screen.blit(character, (character_x_pos, character_y_pos))  # 캐릭터 그리기
     else:
-        screen.blit(my_pokemon, (my_pokemon_x_pos, my_pokemon_y_pos))
+        screen.blit(my_pokemon, (my_pokemon_x_pos, my_pokemon_y_pos))  # 내 포켓몬
+        # 내 포켓몬 체력바
+        for i in range(int((zygarde_hp / 216) * 100)):
+            screen.blit(my_hp, (my_hp_x_pos + (i * my_hp_width), my_hp_y_pos))
 
     if enemy_x_pos < screen_width:
-        screen.blit(enemy, (enemy_x_pos, enemy_y_pos))  # 적 그리기
+        screen.blit(enemy, (enemy_x_pos, enemy_y_pos))  # 상대 그리기
     else:
-        screen.blit(enemy_pokemon, (enemy_pokemon_x_pos, enemy_pokemon_y_pos))
+        screen.blit(
+            enemy_pokemon, (enemy_pokemon_x_pos, enemy_pokemon_y_pos)
+        )  # 상대 포켓몬
+        # 상대 포켓몬 체력바
+        for i in range(int((yveltal_hp / 126) * 100)):
+            screen.blit(
+                enemy_hp, (enemy_hp_x_pos + (i * enemy_hp_width), enemy_hp_y_pos)
+            )
 
     if (character_x_pos + character_width <= 0) and (enemy_x_pos >= screen_width):
         battle = True
