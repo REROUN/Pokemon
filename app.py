@@ -232,8 +232,6 @@ clock = pygame.time.Clock()
 
 # STT
 stt = STT()
-prompt1 = "가라 지가르데!!"
-prompt2 = "가라 이벨타르!!"
 
 # TTS
 tts = TTS()
@@ -309,8 +307,8 @@ while running:
         pygame.quit()
 
     if enemy_attack:
-        prompt2 = "이벨타르 공격해!!"
-        messages.append({"role": "user", "content": prompt2})
+        prompt2 = f"너는 포켓몬스터 골드버전 게임에 나오는 사천왕중에 {enemy_name}이야. 너는 이벨타르를 소환했어. 공격 명령을 해!!"
+        messages.append({"role": "system", "content": prompt2})
         response = client.chat.completions.create(model="gpt-4o", messages=messages)
         gpt_response_text = response.choices[0].message.content
         tts.tts(gpt_response_text)
@@ -334,7 +332,7 @@ while running:
         gpt_response_pending = True
         prompt3 = f"""
         나는 지가르데를 소환했다.
-        상대는 이벨타르를 소환.
+        {enemy_name}는 이벨타르를 소환.
         지가르데의 능력치
             - HP: {zygarde_hp}
             - 공격: 100
